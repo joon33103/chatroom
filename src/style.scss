@@ -14,6 +14,8 @@
     }
   }
   
+  
+
   .formContainer {
     background-color: #a7bcff;
     height: 100vh;
@@ -223,6 +225,12 @@
             height: 24px;
             cursor: pointer;
           }
+        }
+        button {
+          border: none;
+          outline: none;
+          background: transparent;
+          
         }
   
         .messages {

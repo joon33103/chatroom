@@ -10,7 +10,6 @@ const Chats = () => {
 
   const { currentUser } = useContext(AuthContext);
   const { dispatch } = useContext(ChatContext);
-  console.log(Object.entries)
 
   useEffect(() => {
     const getChats = () => {

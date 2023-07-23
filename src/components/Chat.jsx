@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, {useState, useContext } from "react";
 import Cam from "../img/cam.png";
 import Add from "../img/add.png";
 import More from "../img/more.png";
@@ -6,24 +6,36 @@ import Messages from "./Messages";
 import Input from "./Input";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
+import Video from "./Video";
 
 const Chat = () => {
   const { currentUser } = useContext(AuthContext);
   const { data } = useContext(ChatContext);
-  console.log(data)
-  console.log(currentUser)
+  const [videoActiveID, setvideoActiveID] = useState(null);
+  const handlevideoClick = () => {
+    setvideoActiveID(data.chatId)
+    console.log("webcam button hit, chatid: " + data.chatId)
+  }
+
   return (
     <div className="chat">
       <div className="chatInfo">
         <span>{data.user?.displayName}</span>
         <div className="chatIcons">
-          <img src={Cam} alt="" />
-          <img src={Add} alt="" />
-          <img src={More} alt="" />
+          <button onClick={handlevideoClick}>
+            <img className="videoButton" src={Cam} alt="" />
+          </button>
+          <button>
+            <img src={Add} alt="" />
+          </button>
+          <button>
+            <img src={More} alt="" />
+          </button>
         </div>
       </div>
-      <Messages />
-      <Input/>
+      {!videoActiveID && <Messages />}
+      {!videoActiveID && <Input/>}
+      {videoActiveID && <Video/> }
     </div>
   );
 };

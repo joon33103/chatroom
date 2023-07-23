@@ -2,8 +2,13 @@ import {
     createContext,
     useContext,
     useReducer,
+    useState,
+    useEffect
   } from "react";
   import { AuthContext } from "./AuthContext";
+  import { auth } from "../firebase";
+  import { onAuthStateChanged } from "firebase/auth";
+
   
   export const ChatContext = createContext();
   
@@ -13,6 +18,10 @@ import {
       chatId: "null",
       user: {},
     };
+    const [videoActiveID, setvideoActiveID] = useState(null);
+
+    
+    
   
     const chatReducer = (state, action) => {
       switch (action.type) {
