@@ -18,9 +18,15 @@ import {
       chatId: "null",
       user: {},
     };
-    const [videoActiveID, setvideoActiveID] = useState(null);
-
-    
+    // const [videoActiveID, setvideoActiveID] = useState(null);
+    // const toggleVideo = (activate) => {
+    //   if (activate) {
+    //     setvideoActiveID(true);
+    //   } 
+    //   else {
+    //     setvideoActiveID(false);
+    //   }
+    // }
     
   
     const chatReducer = (state, action) => {

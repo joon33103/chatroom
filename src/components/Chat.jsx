@@ -12,9 +12,8 @@ const Chat = () => {
   const { currentUser } = useContext(AuthContext);
   const { data } = useContext(ChatContext);
   const [videoActiveID, setvideoActiveID] = useState(null);
-  const handlevideoClick = () => {
-    setvideoActiveID(data.chatId)
-    console.log("webcam button hit, chatid: " + data.chatId)
+  const handlevideoClick = async () => {
+    setvideoActiveID(data.chatId);
   }
 
   return (
