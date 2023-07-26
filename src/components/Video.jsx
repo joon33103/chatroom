@@ -22,8 +22,6 @@ const Video = () => {
   let answerButton = null;
   let remoteVideo = null;
   let hangupButton = null;
-  console.log("currentUser" + currentUser.uid);
-  console.log("chatContext data" + data);
 
   const servers = {
     iceServers: [
@@ -48,7 +46,6 @@ const Video = () => {
       audio: true,
 
     })
-    console.log("localStream at start = " + localStream);
     // initalizing the remote server to the mediastream
     remoteStream = new MediaStream();
     // Pushing tracks from local stream to peerConnection
@@ -58,16 +55,37 @@ const Video = () => {
     pc.ontrack = event => {
         event.streams[0].getTracks(track => {
             remoteStream.addTrack(track)
-            console.log(track)
+            console.log("Add track to remoteStream : " + track)
         })
     }  
     // displaying the video data from the stream to the webpage
     webcamVideo.srcObject = localStream;
     remoteVideo.srcObject = remoteStream;
-    console.log(remoteStream);
+    registerPeerConnectionListeners();
 
     
   }
+  const registerPeerConnectionListeners = () => {
+    pc.addEventListener('icegatheringstatechange', () => {
+      console.log(
+          `ICE gathering state changed: ${pc.iceGatheringState}`);
+    });
+  
+    pc.addEventListener('connectionstatechange', () => {
+      console.log(`Connection state change: ${pc.connectionState}`);
+    });
+  
+    pc.addEventListener('signalingstatechange', () => {
+      console.log(`Signaling state change: ${pc.signalingState}`);
+    });
+  
+    pc.addEventListener('iceconnectionstatechange ', () => {
+      console.log(
+          `ICE connection state change: ${pc.iceConnectionState}`);
+    });
+  }
+  
+  //returns true if firebase calls collection contains an existing doc with id "chatId"
   const queryCallsFromID = async (chatId) => {
     const q = query(collection(db, "calls"), where("__name__", "==", "{chatId}"));
     const querySnapshot = await getDocs(q);
@@ -80,6 +98,9 @@ const Video = () => {
     )
     return false;
   }
+
+  // when called, creates real-time monitor of the calls collection for the doc with id chatId
+  // and sets the value of callInput in the UI to chatId
   const monitorIncomingCall = () => {
     if (queryCallsFromID(data.chatId)) {
       callInput.value = data.chatId;
@@ -92,19 +113,25 @@ const Video = () => {
     )
   }
 
-
   const callButtonClicked = async () => {
     // referencing firebase collections
     console.log("callButtonClicked")
-    await setDoc(doc(db, "calls", data.chatId),{"offerCandidates":null, "answerCandidates":null});
-    console.log(data.chatId);
+    await setDoc(doc(db, "calls", data.chatId), {offer : null, answer : null});
     const callRef = doc(db, "calls", data.chatId);
+    const offerCandidates = collection(callRef, "offerCandidates");
+    const answerCandidates = collection(callRef, "answerCandidates");
+    console.log(data.chatId);
+
     console.log(callRef);
     // setting the input value to the callRef id
     callInput.value = data.chatId
     // get candidiates for caller and save to db
     pc.onicecandidate = async event => {
-        event.candidate && await updateDoc(callRef, {offerCandidates:event.candidate.toJSON()});
+        event.candidate && await addDoc(offerCandidates, event.candidate.toJSON());
+        if (!event.candidate) {
+          console.log("got final candidate");
+        }
+        console.log('Got candidate: ' + event.candidate)
     }
     // create offer
     const offerDescription = await pc.createOffer();
@@ -115,41 +142,51 @@ const Video = () => {
         type: offerDescription.type
     }
     await updateDoc(callRef,{offer : offer});
-    // listening to changes in firestore and update the streams accordingly
-    const unsub = onSnapshot(callRef, (snapshot) => {
+    // listening to changes in calls collection. If there is data in the answer field and the peerConnection has no remotedescription,
+    // set this answer to the remotedescription
+    const unsub = onSnapshot(callRef, async (snapshot) => {
         const data = snapshot.data();
-        if (data == null) {
-          return;
-        }
-        if (!pc.currentRemoteDescription && data.answer) {
+        if (!pc.currentRemoteDescription && data?.answer) {
             const answerDescription = new RTCSessionDescription(data.answer);
-            pc.setRemoteDescription(answerDescription);
+            await pc.setRemoteDescription(answerDescription);
         }
-        // if answered add candidates to peer connection
-        const q = query(collection(db, "calls"), where("__name__","==", "{data.chatId}"))
-        const answerSub = onSnapshot(q, snapshot => {
-          console.log(snapshot)
-            if (snapshot != null) {
-              console.log(snapshot);
-              snapshot.docChanges().forEach(change => {
-                if (change.type === 'added') {
-                    const candidate = new RTCIceCandidate(change.doc.data());
-                    pc.addIceCandidate(candidate);
-                }
-              })}
-        })
     })
-    hangupButton.disabled = false;
+    // if there are candidates added to answerCandidates, add these as icecandidates to the peer connection
+    const answerSub = onSnapshot(answerCandidates, snapshot => {
+      snapshot.docChanges().forEach(async change => {
+        if (change.type === 'added') {
+            const candidate = new RTCIceCandidate(change.doc.data());
+            console.log("Got new remote ice candidate : " + candidate);
+            await pc.addIceCandidate(candidate).catch((e) => {
+              console.log("addIcecandidateerror = " + e)
+            })
+          }
+        }
+      )
+      })
+    pc.addEventListener('connectionstatechange', event => {
+      if (pc.connectionState === 'connected') {
+          console.log("peers connected")
+      }
+  });
   }
 
   const answerButtonClicked = async () => {
     console.log("answerbuttonClicked")
     const callId = callInput.value;
     // getting the data for this particular call
-    const callRef = doc(db, "calls", callId);            
-    // here we listen to the changes and add it to the answerCandidates
+    const callRef = doc(db, "calls", callId);   
+    const answerCandidates = collection(callRef, "answerCandidates"); 
+    const offerCandidates = collection(callRef, "offerCandidates");
+    const callSnapshot = await getDoc(callRef);
+    console.log("Got room: " + callSnapshot.exists);   
+    // listen to changes in peer connection icecandidates and add them to answerCandidates in the firebase db
     pc.onicecandidate = async event => {
-        event.candidate && await updateDoc(callRef, {answerCandidates:event.candidate.toJSON()});
+        event.candidate && await addDoc(answerCandidates, event.candidate.toJSON());
+        if (!event.candidate) {
+          console.log("Got final candidate (logged by answerbutton)")
+        }
+        console.log("(logged from answerbutton)Got candidate: " + event.candidate);
     }
     const callData = ((await getDoc(callRef)).data());
     // setting the remote video with offerDescription
@@ -157,27 +194,27 @@ const Video = () => {
     await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
     // setting the local video as the answer
     const answerDescription = await pc.createAnswer();
+    console.log("created answer: " + answerDescription)
     await pc.setLocalDescription(new RTCSessionDescription(answerDescription));
     // answer config
     const answer = {
         type: answerDescription.type,
         sdp: answerDescription.sdp
     }
-    const prevofferCandidates = callData.offerCandidates
     await updateDoc(callRef,{answer : answer});
-    const q = query(collection(db, "calls"), where("__name__","==", "{callId}"))
-    onSnapshot(q, snapshot => {
-        if (snapshot == null) {
-          return;
-        }
-        console.log(snapshot);
-        snapshot.docChanges().forEach(change => {
+    onSnapshot(offerCandidates, snapshot => {
+        snapshot.docChanges().forEach(async change => {
             if (change.type === 'added') {
-                let data = change.doc.data();
-                pc.addIceCandidate(new RTCIceCandidate(data));
+              console.log("(logged from answerbutton) got new remote ice cand: " + change.doc.data());
+                await pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
             }
         })
     })
+    pc.addEventListener('connectionstatechange', event => {
+      if (pc.connectionState === 'connected') {
+          console.log("peers connected")
+      }
+  });
   }
   useEffect(() => {
     webcamVideo = document.querySelector('#webcamVideo');
@@ -190,7 +227,12 @@ const Video = () => {
     monitorIncomingCall();
     console.log("localStream = " + localStream);
     console.log("remotestream = " + remoteStream);
-  },[]
+    return() => {
+      videoClicked();
+      monitorIncomingCall();
+    }
+  }
+  ,[]
   )
     
 
