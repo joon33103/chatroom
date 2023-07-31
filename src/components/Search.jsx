@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   collection,
   query,
@@ -20,23 +20,34 @@ const Search = () => {
   const { currentUser } = useContext(AuthContext);
 
   const handleSearch = async () => {
+    let iserror = false;
     const q = query(
       collection(db, "users"),
       where("displayName", "==", username)
     );
-
-    try {
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
-        setUser(doc.data());
-      });
-    } catch (err) {
+    const querySnapshot = await getDocs(q);
+    iserror = true;
+    querySnapshot.forEach((doc) => {
+      setUser(doc.data());
+      iserror = false;
+    })
+    if (iserror) {
       setErr(true);
     }
-  };
+
+  }
+  //   try {
+  //     const querySnapshot = await getDocs(q);
+  //     querySnapshot.forEach((doc) => {
+  //       setUser(doc.data());
+  //     });
+  //   } catch (err) {
+  //     setErr(true);
+  //   }
+  // };
 
   const handleKey = (e) => {
-    e.code === "Enter" && handleSearch();
+    e.key === "Enter" && handleSearch();
   };
 
   const handleSelect = async () => {
@@ -76,6 +87,10 @@ const Search = () => {
     setUser(null);
     setUsername("")
   };
+  useEffect(() => {
+    setErr(false);
+  },[username]
+  );
   return (
     <div className="search">
       <div className="searchForm">

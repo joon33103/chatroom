@@ -11,7 +11,7 @@ import Video from "./Video";
 const Chat = () => {
   const { currentUser } = useContext(AuthContext);
   const { data } = useContext(ChatContext);
-  const [videoActiveID, setvideoActiveID] = useState(null);
+  // const [videoActiveID, setvideoActiveID] = useState(null);
   const handlevideoClick = async () => {
     setvideoActiveID(data.chatId);
   }
@@ -21,20 +21,20 @@ const Chat = () => {
       <div className="chatInfo">
         <span>{data.user?.displayName}</span>
         <div className="chatIcons">
-          <button onClick={handlevideoClick}>
+          {/* <button onClick={handlevideoClick}>
             <img className="videoButton" src={Cam} alt="" />
-          </button>
-          <button>
+          </button> */}
+          {/* <button>
             <img src={Add} alt="" />
           </button>
           <button>
             <img src={More} alt="" />
-          </button>
+          </button> */}
         </div>
       </div>
-      {!videoActiveID && <Messages />}
-      {!videoActiveID && <Input/>}
-      {videoActiveID && <Video/> }
+      {<Messages />}
+      {<Input/>}
+
     </div>
   );
 };
